@@ -197,6 +197,9 @@ def combineTalkgroup(tg):
             if file.endswith('.wav') or file.endswith('.m4a'):
                 try:
                     fileInfo = file.split('-')
+                    if len(fileInfo) < 3:
+                        logging.warning("File {} not a valid call recording, skipping".format(file))
+                        continue
                     # Get TG as int
                     newtg = int(fileInfo[0])
                     if newtg == tgId:
@@ -254,10 +257,13 @@ def combineTalkgroup(tg):
                 logging.debug("            opening {}".format(file[1]))
                 rec = AudioSegment.from_file(file[1], format='m4a')
                 # Get delta from start of file
-                delta = (file[0] - segment).total_seconds()
+                delta = (file[0] - segment).total_seconds()*1000
                 logging.debug("            Offsetting file {} seconds from start".format(delta))
                 # Add file to output rec at offset
-                outputRec = outputRec.overlay(rec, position=delta*1000)
+                #outputRec = outputRec.overlay(rec, position=delta)
+                recBefore = outputRec[:delta]
+                recAfter = outputRec[delta + len(rec):]
+                outputRec = recBefore + rec + recAfter
                 # Flip flag
                 hasAudio = True
                 # Remove if enabled
