@@ -233,10 +233,12 @@ def combineTalkgroup(tg):
     # Iterate through each time segment
     for segment in timeSegments:
         # Generate filename
-        outputFilename = "{}_{}_{}.aac".format(tgId,tgTag,segment.strftime("%Y%m%d-%H%M%S"))
+        outputFilename = "{}_{}_{}.ogg".format(tgId,tgTag,segment.strftime("%Y%m%d-%H%M%S"))
         outputFullpath = "{}/{}_{}/{}".format(outPath, tgId, tgTag, outputFilename)
 
         outputRec = None    # future file
+
+        filesToDelete = []
 
         # If file already exists, open it
         if os.path.exists(outputFullpath):
@@ -269,8 +271,8 @@ def combineTalkgroup(tg):
                 hasAudio = True
                 # Remove if enabled
                 if remove:
-                    logging.debug("            removing file {}".format(file[1]))
-                    os.remove(file[1])
+                    logging.debug("            marking file {} for deletion".format(file[1]))
+                    filesToDelete.append(file[1])
 
         # Trim to 1-second silence if it's an empty file or skip if we aren't keeping empty files
         if not hasAudio:
@@ -285,9 +287,17 @@ def combineTalkgroup(tg):
 
         # Save
         logging.debug("        Saving file {}".format(outputFullpath))
-        outputRec.export(outputFullpath, 
-                        format="adts",
+        outputFile = outputRec.export(outputFullpath, 
+                        format="ogg",
+                        codec='libopus',
                         bitrate="64k")
+
+        # Make sure the output file was written before deleting
+        if os.path.exists(outputFile.name) and remove:
+            logging.debug("File {} successfully written, deleting source files".format(outputFile.name))
+            for file in filesToDelete:
+                logging.debug("        removing file {}".format(file))
+                os.remove(file)
 
 
 def main():
