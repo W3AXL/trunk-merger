@@ -237,7 +237,7 @@ def combineTalkgroup(tg):
         # If file already exists, open it
         if os.path.exists(outputFullpath):
             logging.warning("        File {} already exists, opening and appending any new audio".format(outputFullpath))
-            outputRec = AudioSegment.from_file(file[1], format='adts')
+            outputRec = AudioSegment.from_file(outputFullpath)
         else:
             # Create a blank file 30 minutes long
             logging.info("        Starting file {}".format(outputFullpath))
