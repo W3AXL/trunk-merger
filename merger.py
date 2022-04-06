@@ -85,8 +85,8 @@ def parseArgs():
     
     parser = argparse.ArgumentParser(description="Combines individual trunk-recorder talkgroup recordings into time-accurate archives")
     
-    parser.add_argument('-t', '--trunk-file', metavar="tg.csv", help="trunk-recorder talkgroup CSV file")
-    parser.add_argument('-i', '--input', metavar="~/recordings/", help="trunk-recorder archive folder (will descend recursively)")
+    parser.add_argument('-t', '--trunk-file', metavar="tg.csv", help="trunk-recorder talkgroup CSV file", required=True)
+    parser.add_argument('-i', '--input', metavar="~/recordings/", help="trunk-recorder archive folder (will descend recursively)", required=True)
     parser.add_argument('-o', '--output', metavar="~/archive/", help="output directory for combined archive recordings (default = current folder)")
     parser.add_argument('-n', '--num-threads', metavar="4", help="number of concurrent processing threads (default = 4)")
     parser.add_argument('-p', '--priority', metavar='3', help="Lowest priority talkgroup to combine archives for (default = 3)")
@@ -232,14 +232,18 @@ def combineTalkgroup(tg):
         outputFilename = "{}_{}_{}.aac".format(tgId,tgTag,segment.strftime("%Y%m%d-%H%M%S"))
         outputFullpath = "{}/{}_{}/{}".format(outPath, tgId, tgTag, outputFilename)
 
-        # If file already exists, skip processing
+        outputRec = None    # future file
+
+        # If file already exists, open it
         if os.path.exists(outputFullpath):
-            logging.warning("Skipping file {}, already exists".format(outputFullpath))
-            continue
+            logging.warning("        File {} already exists, opening and appending any new audio".format(outputFullpath))
+            outputRec = AudioSegment.from_file(file[1], format='adts')
+        else:
+            # Create a blank file 30 minutes long
+            logging.info("        Starting file {}".format(outputFullpath))
+            outputRec = AudioSegment.silent(duration=30*60*1000)
         
-        # Create a blank file 30 minutes long
-        logging.info("        Starting file {}".format(outputFullpath))
-        outputRec = AudioSegment.silent(duration=30*60*1000)
+        # Flag for new audio
         hasAudio = False
 
         # Iterate through each recording
