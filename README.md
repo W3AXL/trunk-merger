@@ -26,3 +26,7 @@ optional arguments:
   -e, --keep-empty      keep empty output audio files
   -v, --verbose         enable verbose logging
 ```
+
+## Warnings
+
+If you do not specify -rm, the raw trunk-recorder recordings will not be deleted. However, this means that the next time the script is run it will re-overlay these same files over top of the existing audio, basically doubling it. **TODO:** fix it so it doesn't do that
