@@ -219,10 +219,11 @@ def combineTalkgroup(tg):
     else:
         logging.info("Found {} files to process for TG {} ({})".format(len(recFiles), tgId, tgTag))
 
-    # Get oldest and youngest times in the recording file list
+    # Get oldest file for starting range and get the last 30-minute interval before the current time
     dates = [i[0] for i in recFiles]
     minDate = datetimeFloor(min(dates),timedelta(minutes=30))
-    maxDate = datetimeCeil(max(dates),timedelta(minutes=30))
+    #maxDate = datetimeCeil(max(dates),timedelta(minutes=30))
+    maxDate = datetimeFloor(datetime.now(),timedelta(minutes=30))
     logging.info("    Time range from {} to {}".format(minDate, maxDate))
 
     # Generate an array of 30-min spaced datetimes starting with the earliest file rounded down to the nearest 30-minute increment
@@ -286,7 +287,7 @@ def combineTalkgroup(tg):
         logging.debug("        Saving file {}".format(outputFullpath))
         outputRec.export(outputFullpath, 
                         format="adts",
-                        bitrate="32k")
+                        bitrate="64k")
 
 
 def main():
