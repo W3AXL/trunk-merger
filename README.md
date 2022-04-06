@@ -1,6 +1,10 @@
 # trunk-merger
 Small python utility to take trunk-recorder input files and merge them into 30-minute archived recordings, like you'd get from Broadcastify or similar sources.
 
+It will recursively search for any trunk-recorder audio files in the specified input directory, combine them based on talkgroups specified in the specified CSV file (optionally filtering by priority), and put them into folders as merged realtime 30-minute audio files perfect for archival purposes.
+
+Still in very early alpha and only updated when I find things that don't work for me.
+
 ```
 ~/trunk-merger$ python merger.py -h
 usage: merger.py [-h] [-t tg.csv] [-i ~/recordings/] [-o ~/archive/] [-n 4] [-p 3] [-rm] [-e] [-v]
