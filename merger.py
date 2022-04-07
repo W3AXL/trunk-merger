@@ -20,7 +20,7 @@ import csv
 from multiprocessing import Pool
 from multiprocessing import freeze_support
 
-from pydub import AudioSegment
+from pydub import AudioSegment, effects
 
 # User Variables
 trunkCsv = None
@@ -233,7 +233,7 @@ def combineTalkgroup(tg):
     # Iterate through each time segment
     for segment in timeSegments:
         # Generate filename
-        outputFilename = "{}_{}_{}.ogg".format(tgId,tgTag,segment.strftime("%Y%m%d-%H%M%S"))
+        outputFilename = "{}_{}_{}.m4a".format(tgId,tgTag,segment.strftime("%Y%m%d-%H%M%S"))
         outputFullpath = "{}/{}_{}/{}".format(outPath, tgId, tgTag, outputFilename)
 
         outputRec = None    # future file
@@ -284,13 +284,15 @@ def combineTalkgroup(tg):
                 continue
         
         # Apply post-processing to audio
+        #logging.debug("        Applying effects to output clip")
+        #outputRec = effects.compress_dynamic_range(outputRec)
+        #outputRec = effects.normalize(outputRec, headroom=1.0)
 
         # Save
         logging.debug("        Saving file {}".format(outputFullpath))
         outputFile = outputRec.export(outputFullpath, 
-                        format="ogg",
-                        codec='libopus',
-                        bitrate="64k")
+                        format="ipod",
+                        bitrate="96k")
 
         # Make sure the output file was written before deleting
         if os.path.exists(outputFile.name) and remove:
@@ -328,6 +330,8 @@ def main():
     # Multithreaded Version
     p = Pool(processes=numThreads)
     result = p.map(combineTalkgroup, talkgroups)
+
+    logging.info("Finished!")
 
 if __name__ == "__main__":
     main()
