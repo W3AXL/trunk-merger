@@ -19,8 +19,10 @@ import csv
 
 from multiprocessing import Pool
 from multiprocessing import freeze_support
+from xmlrpc.client import DateTime
 
 from pydub import AudioSegment, effects
+import pydub.exceptions as pydubex
 
 # User Variables
 trunkCsv = None
@@ -224,6 +226,9 @@ def combineTalkgroup(tg):
     minDate = datetimeFloor(min(dates),timedelta(minutes=30))
     #maxDate = datetimeCeil(max(dates),timedelta(minutes=30))
     maxDate = datetimeFloor(datetime.now(),timedelta(minutes=30))
+    if maxDate - minDate > timedelta(days=1):
+        minDate = maxDate - timedelta(days=1)
+        logging.warning("    Clipped min time to {}, files may remain before this date".format(minDate))
     logging.info("    Time range from {} to {}".format(minDate, maxDate))
 
     # Generate an array of 30-min spaced datetimes starting with the earliest file rounded down to the nearest 30-minute increment
@@ -242,7 +247,7 @@ def combineTalkgroup(tg):
 
         # If file already exists, open it
         if os.path.exists(outputFullpath):
-            logging.warning("        File {} already exists, opening and appending any new audio".format(outputFullpath))
+            logging.debug("        File {} already exists, opening and appending any new audio".format(outputFullpath))
             outputRec = AudioSegment.from_file(outputFullpath)
         else:
             # Create a blank file 30 minutes long
@@ -258,21 +263,25 @@ def combineTalkgroup(tg):
             if segment < file[0] < (segment + timedelta(minutes=30)):
                 # Open file
                 logging.debug("            opening {}".format(file[1]))
-                rec = AudioSegment.from_file(file[1], format='m4a')
-                # Get delta from start of file
-                delta = (file[0] - segment).total_seconds()*1000
-                logging.debug("            Offsetting file {} seconds from start".format(delta))
-                # Add file to output rec at offset
-                #outputRec = outputRec.overlay(rec, position=delta)
-                recBefore = outputRec[:delta]
-                recAfter = outputRec[delta + len(rec):]
-                outputRec = recBefore + rec + recAfter
-                # Flip flag
-                hasAudio = True
-                # Remove if enabled
-                if remove:
-                    logging.debug("            marking file {} for deletion".format(file[1]))
-                    filesToDelete.append(file[1])
+                try:
+                    rec = AudioSegment.from_file(file[1], format='m4a')
+                    # Get delta from start of file
+                    delta = (file[0] - segment).total_seconds()*1000
+                    logging.debug("            Offsetting file {} seconds from start".format(delta))
+                    # Add file to output rec at offset
+                    #outputRec = outputRec.overlay(rec, position=delta)
+                    recBefore = outputRec[:delta]
+                    recAfter = outputRec[delta + len(rec):]
+                    outputRec = recBefore + rec + recAfter
+                    # Flip flag
+                    hasAudio = True
+                    # Remove if enabled
+                    if remove:
+                        logging.debug("            marking file {} for deletion".format(file[1]))
+                        filesToDelete.append(file[1])
+                except pydubex.CouldntDecodeError:
+                    logging.error("Got error decoding file {}, skipping and not removing".format(file[1]))
+                    continue 
 
         # Trim to 1-second silence if it's an empty file or skip if we aren't keeping empty files
         if not hasAudio:
