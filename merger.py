@@ -36,6 +36,10 @@ keepEmpty = False
 # Global Variables
 talkgroups = []     # pairs of [tgId, tgTag] entries
 
+# Audio configuration
+samplerate = 24000
+bitrate = 18
+
 # Function Defs
 
 def datetimeRange(start, end, delta):
@@ -84,6 +88,7 @@ def parseArgs():
     global priority
     global remove
     global keepEmpty
+    global norm
     
     parser = argparse.ArgumentParser(description="Combines individual trunk-recorder talkgroup recordings into time-accurate archives")
     
@@ -94,6 +99,7 @@ def parseArgs():
     parser.add_argument('-p', '--priority', metavar='3', help="Lowest priority talkgroup to combine archives for (default = 3)")
     parser.add_argument('-rm', '--remove', action='store_true', help='remove input files once combined')
     parser.add_argument('-e', '--keep-empty', action='store_true', help='keep empty output audio files')
+    parser.add_argument('--normalize', action='store_true', help='normalize audio files')
     parser.add_argument('-v', '--verbose', action='store_true', help='enable verbose logging')
 
     args = parser.parse_args()
@@ -138,6 +144,9 @@ def parseArgs():
 
     if args.keep_empty:
         keepEmpty = True
+
+    if args.normalize:
+        norm = True
 
 def getTalkgroups(file):
     """
@@ -187,6 +196,7 @@ def combineTalkgroup(tg):
     global outPath
     global remove
     global keepEmpty
+    global norm
 
     tgId, tgTag = tg
 
@@ -238,7 +248,8 @@ def combineTalkgroup(tg):
     # Iterate through each time segment
     for segment in timeSegments:
         # Generate filename
-        outputFilename = "{}_{}_{}.m4a".format(tgId,tgTag,segment.strftime("%Y%m%d-%H%M%S"))
+        #outputFilename = "{}_{}_{}.m4a".format(tgId,tgTag,segment.strftime("%Y%m%d-%H%M%S"))
+        outputFilename = "{}_{}_{}.ogg".format(tgId,tgTag,segment.strftime("%Y%m%d-%H%M%S"))
         outputFullpath = "{}/{}_{}/{}".format(outPath, tgId, tgTag, outputFilename)
 
         outputRec = None    # future file
@@ -252,7 +263,7 @@ def combineTalkgroup(tg):
         else:
             # Create a blank file 30 minutes long
             logging.info("        Starting file {}".format(outputFullpath))
-            outputRec = AudioSegment.silent(duration=30*60*1000)
+            outputRec = AudioSegment.silent(duration=30*60*1000, frame_rate=samplerate)
         
         # Flag for new audio
         hasAudio = False
@@ -264,7 +275,18 @@ def combineTalkgroup(tg):
                 # Open file
                 logging.debug("            opening {}".format(file[1]))
                 try:
-                    rec = AudioSegment.from_file(file[1], format='m4a')
+                    # open based on filetype
+                    rec = None
+                    if file[1].endswith('m4a'):
+                        rec = AudioSegment.from_file(file[1], format='m4a')
+                    elif file[1].endswith('wav'):
+                        rec = AudioSegment.from_wav(file[1])
+                    else:
+                        logging.error("Invalid audio file {}, skipping".format(file[1]))
+                        continue
+                    # Normalize
+                    if norm:
+                        rec = effects.normalize(rec, headroom=0.25)
                     # Get delta from start of file
                     delta = (file[0] - segment).total_seconds()*1000
                     logging.debug("            Offsetting file {} seconds from start".format(delta))
@@ -289,7 +311,7 @@ def combineTalkgroup(tg):
                 outputRec = outputRec[0:1000]
                 logging.warning("        No audio for time range, shortening to 1s of silence")
             else:
-                logging.debug("        No audio for time range, not saving")
+                logging.warning("        No audio for time range, not saving")
                 continue
         
         # Apply post-processing to audio
@@ -298,14 +320,15 @@ def combineTalkgroup(tg):
         #outputRec = effects.normalize(outputRec, headroom=1.0)
 
         # Save
-        logging.debug("        Saving file {}".format(outputFullpath))
+        logging.info("        Saving file {}".format(outputFullpath))
         outputFile = outputRec.export(outputFullpath, 
-                        format="ipod",
-                        bitrate="96k")
+                        format="opus",
+                        bitrate="18k",
+                        parameters=["-application", "voip", "-cutoff", "6000"])
 
         # Make sure the output file was written before deleting
         if os.path.exists(outputFile.name) and remove:
-            logging.debug("File {} successfully written, deleting source files".format(outputFile.name))
+            logging.info("File {} successfully written, deleting source files".format(outputFile.name))
             for file in filesToDelete:
                 logging.debug("        removing file {}".format(file))
                 os.remove(file)
